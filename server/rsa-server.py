@@ -95,11 +95,13 @@ def process_client(client, app):
                 elif cmd == "get_users":
                     users = []
 
-                    for user in User.query.all():
+                    for interlocutor in User.query.all():
+                        if interlocutor.login == user.login:
+                            continue
                         users.append({
-                            "login": user.login,
-                            "open_exponent": int(user.open_exponent),
-                            "module": int(user.module)
+                            "login": interlocutor.login,
+                            "open_exponent": int(interlocutor.open_exponent),
+                            "module": int(interlocutor.module)
                         })
 
                     result = {
@@ -126,7 +128,13 @@ def process_client(client, app):
                                 ((Message.sender == user.login) & (Message.receiver == interlocutor.login)) | (
                                         (Message.receiver == user.login) & (
                                         Message.sender == interlocutor.login))).order_by(Message.created_on).all():
+                            if message.sender == user.login and not message.self_copy:
+                                continue
+                            if message.receiver == user.login and message.self_copy:
+                                continue
+
                             messages.append({
+                                "user": message.sender,
                                 "created_at": message.created_on.isoformat(),
                                 "content": message.content
                             })
@@ -148,8 +156,10 @@ def process_client(client, app):
                         }
                     else:
                         interlocutor = User.query.filter_by(login=data.get('user')).first()
+                        self_copy = data.get('self_copy', False)
+
                         db.session.add(
-                            Message(sender=user.login, receiver=interlocutor.login, content=data.get('content')))
+                            Message(sender=user.login, receiver=interlocutor.login, content=data.get('content'), self_copy=self_copy))
                         db.session.commit()
 
                         result = {

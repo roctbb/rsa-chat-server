@@ -20,6 +20,7 @@ class Message(db.Model):
     sender = db.Column(db.String(255))
     receiver = db.Column(db.String(255))
     created_on = db.Column(db.DateTime, server_default=db.func.now())
+    self_copy = db.Column(db.Boolean, default=False)
 
 db_string = "postgresql://{}:{}@{}:{}/{}".format(DB_LOGIN, DB_PASSWORD, DB_HOST, DB_PORT, DB_DATABASE)
 app.config['SQLALCHEMY_DATABASE_URI'] = db_string
