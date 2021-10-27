@@ -1,5 +1,5 @@
 .idea
-client/config.py
-client/config*
+example_client/config.py
+example_client/config*
 server/config.py
 server/migrations
