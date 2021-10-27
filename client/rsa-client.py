@@ -3,6 +3,7 @@ import socket
 from client.config import PUBLIC_KEY, PRIVATE_KEY
 from common import netlib, rsalib
 from common import byteslib
+import json
 
 sock = socket.socket()
 sock.connect(('127.0.0.1', 9090))
@@ -19,16 +20,55 @@ netlib.send_bytes(sock, byteslib.to_bytes(self_e))
 netlib.send_bytes(sock, byteslib.to_bytes(self_n))
 
 
-for i in range(10):
-    print("Sending ping...")
-    crypted_cmd = rsalib.encrypt("ping".encode('utf-8'), KEY)
-    print("Sending blocks", crypted_cmd)
-    netlib.send_blocks(sock, crypted_cmd)
+print("Auth...")
 
-    print("Waiting for answer...")
-    crypted_cmd = netlib.receive_blocks(sock)
-    cmd = rsalib.decrypt(crypted_cmd, PRIVATE_KEY).decode('utf-8')
-    print("Got cmd: ", cmd)
+cmd = {
+    "cmd": "register",
+    "login": "test"
+}
+netlib.encrypt_and_send(sock, json.dumps(cmd).encode('utf-8'), KEY)
 
-netlib.send_blocks(sock, rsalib.encrypt("end".encode('utf-8'), KEY))
+print("Waiting for answer...")
+answer = netlib.receive_and_decrypt(sock, PRIVATE_KEY)
+print("Got cmd: ", answer.decode('utf-8'))
+
+cmd = {
+    "cmd": "get_users"
+}
+
+netlib.encrypt_and_send(sock, json.dumps(cmd).encode('utf-8'), KEY)
+print("Waiting for answer...")
+answer = netlib.receive_and_decrypt(sock, PRIVATE_KEY)
+print("Got cmd: ", answer.decode('utf-8'))
+
+# message
+cmd = {
+    "cmd": "send_message",
+    "user": "roctbb",
+    "content": "heh"
+}
+
+netlib.encrypt_and_send(sock, json.dumps(cmd).encode('utf-8'), KEY)
+print("Waiting for answer...")
+answer = netlib.receive_and_decrypt(sock, PRIVATE_KEY)
+print("Got cmd: ", answer.decode('utf-8'))
+
+# get messages
+# message
+cmd = {
+    "cmd": "get_messages",
+    "user": "roctbb",
+}
+
+netlib.encrypt_and_send(sock, json.dumps(cmd).encode('utf-8'), KEY)
+print("Waiting for answer...")
+answer = netlib.receive_and_decrypt(sock, PRIVATE_KEY)
+print("Got cmd: ", answer.decode('utf-8'))
+
+# log out
+cmd = {
+    "cmd": "goodbye"
+}
+
+netlib.encrypt_and_send(sock, json.dumps(cmd).encode('utf-8'), KEY)
 sock.close()

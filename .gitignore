@@ -1,3 +1,5 @@
 .idea
 client/config.py
+client/config*
 server/config.py
+server/migrations

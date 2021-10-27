@@ -1,5 +1,6 @@
 import struct
 from common.byteslib import to_bytes, from_bytes
+from common.rsalib import decrypt, encrypt
 
 def receive_n(conn, n):
     data = b""
@@ -38,6 +39,12 @@ def receive_blocks(conn):
 
     return result
 
+def encrypt_and_send(conn, data, key):
+    blocks = encrypt(data, key)
+    return send_blocks(conn, blocks)
 
+def receive_and_decrypt(conn, key):
+    data = receive_blocks(conn)
+    return decrypt(data, key)
 
 
