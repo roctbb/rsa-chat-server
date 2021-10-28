@@ -6,6 +6,26 @@ from common import netlib, rsalib
 from common import byteslib
 import json
 
+# шифрование и отправка команды на сервер, получение и декодирование ответа
+def send_command(cmd, KEY, connection):
+    netlib.encrypt_and_send(connection, json.dumps(cmd).encode('utf-8'), KEY)
+    print("Sending ", cmd)
+    answer = netlib.receive_and_decrypt(connection, PRIVATE_KEY)
+    print("Answer is", answer.decode('utf-8'))
+
+    return json.loads(answer.decode('utf-8'))
+
+# шифрование текста и кодирование в список base64 блоков
+def prepare_text(text, KEY):
+    blocks = rsalib.encrypt(text.encode('utf-8'), KEY)
+    return json.dumps(list(map(lambda x: base64.b64encode(x).decode('ascii'), blocks)))
+
+# расфшифровка и превращение обратно в текст списка из base64 блоков
+def decode_text(text, KEY):
+    base64_blocks = json.loads(text)
+    blocks = list(map(lambda x: base64.b64decode(x), base64_blocks))
+    return rsalib.decrypt(blocks, KEY).decode('utf-8')
+
 # 0. соединение с сервером
 sock = socket.socket()
 sock.connect(('127.0.0.1', 9090))
@@ -25,90 +45,60 @@ netlib.send_bytes(sock, byteslib.to_bytes(self_e))
 netlib.send_bytes(sock, byteslib.to_bytes(self_n))
 
 # 1. Регистрация ника (необходимо только при первом подключении)
-print("Auth...")
-
-cmd = {
+send_command({
     "cmd": "register",
     "login": "test"
-}
-netlib.encrypt_and_send(sock, json.dumps(cmd).encode('utf-8'), KEY)
-
-print("Waiting for answer...")
-answer = netlib.receive_and_decrypt(sock, PRIVATE_KEY)
-print("Got cmd: ", answer.decode('utf-8'))
+}, KEY, sock)
 
 # 2. Получение списка пользователей с сервера
-cmd = {
+
+users = send_command({
     "cmd": "get_users"
-}
+}, KEY, sock).get('data')
 
-netlib.encrypt_and_send(sock, json.dumps(cmd).encode('utf-8'), KEY)
-print("Waiting for answer...")
-answer = netlib.receive_and_decrypt(sock, PRIVATE_KEY)
-print("Got cmd: ", answer.decode('utf-8'))
-
-receiver = json.loads(answer.decode('utf-8'))['data'][0]
+# первый пользователь в списке (но его может не быть)
+receiver = users[0]
 
 # 3. Отправка сообщения
 # 3.1 Отправка сообщения собеседнику
 
-blocks = rsalib.encrypt("Message text".encode('utf-8'), (receiver['open_exponent'], receiver['module']))
-base64_blocks = json.dumps(list(map(lambda x: base64.b64encode(x).decode('ascii'), blocks)))
+# текст шифруется ключем получателя и кодируется в список base64 фрагментов
+# обратно этот текст с сервера уже не получить - ключ для расшифровки неизвестен
+encrypted_content = prepare_text("Hello world!", (receiver['open_exponent'], receiver['module']))
 
-cmd = {
+send_command({
     "cmd": "send_message",
     "user": receiver['login'],
-    "content": base64_blocks
-}
-
-netlib.encrypt_and_send(sock, json.dumps(cmd).encode('utf-8'), KEY)
-print("Waiting for answer...")
-answer = netlib.receive_and_decrypt(sock, PRIVATE_KEY)
-print("Got cmd: ", answer.decode('utf-8'))
+    "content": encrypted_content
+}, KEY, sock)
 
 
 # 3.1 Сохранение на сервере копии для себя
+# на этот раз текст шифруется уже нашим открытым ключем - его можно будет забрать обратно и расшифровать
+encrypted_content = prepare_text("Hello world!", PUBLIC_KEY)
 
-blocks = rsalib.encrypt("Message text".encode('utf-8'), PUBLIC_KEY)
-base64_blocks = json.dumps(list(map(lambda x: base64.b64encode(x).decode('ascii'), blocks)))
-
-cmd = {
+send_command({
     "cmd": "send_message",
     "user": receiver['login'],
-    "content": base64_blocks,
+    "content": encrypted_content,
     "self_copy": True
-}
-
-netlib.encrypt_and_send(sock, json.dumps(cmd).encode('utf-8'), KEY)
-print("Waiting for answer...")
-answer = netlib.receive_and_decrypt(sock, PRIVATE_KEY)
-print("Got cmd: ", answer.decode('utf-8'))
+}, KEY, sock)
 
 
-
-# 4. Получение списка сообщений
-cmd = {
+# 4. Получение списка сообщений - с пользователем roctbb
+messages = send_command({
     "cmd": "get_messages",
     "user": "roctbb",
-}
+}, KEY, sock).get('data')
 
-netlib.encrypt_and_send(sock, json.dumps(cmd).encode('utf-8'), KEY)
-print("Waiting for answer...")
-answer = netlib.receive_and_decrypt(sock, PRIVATE_KEY)
-print("Got cmd: ", answer.decode('utf-8'))
-
-messages = json.loads(answer.decode('utf-8')).get('data')
 for message in messages:
-    base64_blocks = json.loads(message['content'])
-    blocks = list(map(lambda x: base64.b64decode(x), base64_blocks))
-    text = rsalib.decrypt(blocks, PRIVATE_KEY).decode('utf-8')
-
+    # декордируем список из base64 строк, расшифровываем и склеиваем его, а затем - превращаем в текст
+    text = decode_text(message['content'], PRIVATE_KEY)
     print("{}: {}".format(message['user'], text))
 
 # 5. Отключение
-cmd = {
+send_command({
     "cmd": "goodbye"
-}
+}, KEY, sock)
 
-netlib.encrypt_and_send(sock, json.dumps(cmd).encode('utf-8'), KEY)
 sock.close()
