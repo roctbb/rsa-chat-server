@@ -4,7 +4,7 @@ import threading
 from common import netlib
 from common import byteslib
 import socket
-from server.config import PUBLIC_KEY, PRIVATE_KEY
+from server.config import PUBLIC_KEY, PRIVATE_KEY, HOST, PORT
 from app import app, User, Message, db
 
 
@@ -180,7 +180,7 @@ def process_client(client, app):
 clients = []
 
 sock = socket.socket()
-sock.bind(('', 9090))
+sock.bind((HOST, PORT))
 sock.listen(1)
 
 print("Waiting for connections...")
