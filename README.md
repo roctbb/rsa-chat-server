@@ -10,6 +10,33 @@
 
 Подразумевается использование "чистого RSA" (без отступов) c 1024 битным ключом.
 
+### Настройка, генерация ключей, запуск
+
+Для работы необходимо переименовать файл **config.py.example** в папке `server` и указать ключи и данные для БД, хост и порт.
+
+**Для генерации ключей:**
+
+```
+python3 ./utils/generate-keys.py
+```
+
+**Создание таблиц:**
+
+```
+cd server
+flask db init
+flask db migrate
+flask db upgrade
+cd ..
+```
+
+**Запуск:**
+
+```
+pip3 install requirements.txt
+python3 ./server/rsa-server.py
+```
+
 ### Протокол
 
 Сервер работает в пасивном режиме, отвечает на запросы клиентов.
@@ -148,34 +175,9 @@
 }
 ```
 
-### Настройка, генерация ключей, запуск
+### Пример взаимодействия с сервером
 
-Для работы необходимо переименовать файл **config.py.example** в папке `server` и указать ключи и данные для БД, хост и порт.
-
-**Для генерации ключей:**
-
-```
-python3 ./utils/generate-keys.py
-```
-
-**Создание таблиц:**
-
-```
-cd server
-flask db init
-flask db migrate
-flask db upgrade
-cd ..
-```
-
-**Запуск:**
-
-```
-pip3 install requirements.txt
-python3 ./server/rsa-server.py
-```
-
-
+https://github.com/roctbb/rsa-chat-server/tree/master/example_client
 
 
 
