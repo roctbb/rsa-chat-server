@@ -1,29 +1,42 @@
 import base64
 import socket
-
-from example_client.config import PUBLIC_KEY, PRIVATE_KEY
-from common import netlib, rsalib
-from common import byteslib
 import json
 
+from common import netlib, rsalib
+from common import byteslib
+
+# публичный и приватный ключ клиента
+from example_client.config import PUBLIC_KEY, PRIVATE_KEY
+
+
+# Вспомогательные функции
 # шифрование и отправка команды на сервер, получение и декодирование ответа
 def send_command(cmd, KEY, connection):
+    # dict -> JSON string -> bytes
     netlib.encrypt_and_send(connection, json.dumps(cmd).encode('utf-8'), KEY)
     print("Sending ", cmd)
+
     answer = netlib.receive_and_decrypt(connection, PRIVATE_KEY)
     print("Answer is", answer.decode('utf-8'))
 
+    # bytes -> JSON string -> dict
     return json.loads(answer.decode('utf-8'))
 
-# шифрование текста и кодирование в список base64 блоков
+# шифрование текста и кодирование в JSON список base64 блоков
 def prepare_text(text, KEY):
+    # string -> bytes -> List[bytes]
     blocks = rsalib.encrypt(text.encode('utf-8'), KEY)
+
+    # List[bytes] -> List[base64 string] -> JSON string
     return json.dumps(list(map(lambda x: base64.b64encode(x).decode('ascii'), blocks)))
 
-# расфшифровка и превращение обратно в текст списка из base64 блоков
+# расфшифровка и превращение обратно в текст JSON списка из base64 блоков
 def decode_text(text, KEY):
+    # JSON string -> List[base64 string]
     base64_blocks = json.loads(text)
+    # List[base64 string] -> List[bytes]
     blocks = list(map(lambda x: base64.b64decode(x), base64_blocks))
+    # List[bytes] -> bytes -> string
     return rsalib.decrypt(blocks, KEY).decode('utf-8')
 
 # 0. соединение с сервером
